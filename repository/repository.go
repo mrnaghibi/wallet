@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"../entity"
+	"github.com/mrnaghibi/wallet/entity"
 )
 type Wallet interface{
 	InsertOrUpdate(*entity.Wallet) (*entity.Wallet,error)

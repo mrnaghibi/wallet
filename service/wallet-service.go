@@ -1,8 +1,8 @@
 package service
 
 import (
-	"../entity"
-	"../repository"
+	"github.com/mrnaghibi/wallet/entity"
+	"github.com/mrnaghibi/wallet/repository"
 )
 
 type WalletService interface {

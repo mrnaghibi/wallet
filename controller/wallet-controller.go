@@ -1,17 +1,19 @@
 package controller
 
 import (
+	"os"
+	"bytes"
+	"encoding/json"
+	"io/ioutil"
 	"net/http"
 
-	"encoding/json"
-
-	"../entity"
-	"../errors"
-	"../service"
+	"github.com/mrnaghibi/wallet/entity"
+	"github.com/mrnaghibi/wallet/errors"
+	"github.com/mrnaghibi/wallet/service"
 )
 
-const(
-	discountAmount = 1000000
+const (
+	discountAmount        = 1000000
 )
 
 type WalletController interface {
@@ -24,45 +26,57 @@ type bodyDiscount struct {
 }
 
 type bodyMobile struct {
-	Mobile   string `json:"mobile"`
+	Mobile string `json:"mobile"`
 }
 
 var (
-	walletService service.walletService
+	walletService service.WalletService
 )
 
 type controller struct{}
 
-func NewWalletController(walletSRV service.walletService) WalletController {
+func NewWalletController(walletSRV service.WalletService) WalletController {
 	walletService = walletSRV
 	return &controller{}
 }
 
 func (*controller) CreateOrUpdateWallet(response http.ResponseWriter, request *http.Request) {
-	
-	response.Header().Set("Content-Type","application/json")
 
-	var body bodyDiscount
-	json.NewDecoder(request.Body).Decode(&body)
-
-	jsonValue,err  := ioutil.ReadAll(request.Body)
+	response.Header().Set("Content-Type", "application/json")
+	jsonValue, err := ioutil.ReadAll(request.Body)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(response).Encode(errors.ServiecError{Message: err.Error()})
 		return
 	}
-	res , _ := http.Post("http://localhost:8000/api/discounts/consume","application/json",bytes.NewBuffer(jsonValue))
-	if res.StatusCode == 204{
-		var wallet entity.Wallet{
-			Mobile: body.Mobile
-			Balance : discountAmount
-		}
-		walletService.CreateOrUpdate(&wallet)
-		response.WriteHeader(http.StatusOK)
-		json.NewEncoder(response).Encode(wallet)
-	}else{
-		http.Error(response, "{}", http.StatusBadRequest)
+	res, err3 := http.Post(os.Getenv("BASEURL")+"/api/discounts/consume", "application/json", bytes.NewBuffer(jsonValue))
+	if err3 != nil {
+		http.Error(response, err3.Error(), http.StatusInternalServerError)
 		return
+	}
+	if res.StatusCode == 200 {
+		var body bodyDiscount
+		err1 := json.Unmarshal(jsonValue, &body)
+		if err1 != nil {
+			response.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(response).Encode(errors.ServiecError{Message: err1.Error()})
+			return
+		}
+		wallet := entity.Wallet{
+			Mobile:  body.Mobile,
+			Balance: discountAmount,
+		}
+		result, err2 := walletService.CreateOrUpdate(&wallet)
+		if err2 != nil {
+			response.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(response).Encode(errors.ServiecError{Message: err1.Error()})
+			return
+		}
+		response.WriteHeader(http.StatusOK)
+		json.NewEncoder(response).Encode(result)
+	} else {
+		response.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(response).Encode(errors.ServiecError{Message: "Error"})
 	}
 }
 func (*controller) ReadWallet(response http.ResponseWriter, request *http.Request) {
@@ -74,7 +88,8 @@ func (*controller) ReadWallet(response http.ResponseWriter, request *http.Reques
 		json.NewEncoder(response).Encode(errors.ServiecError{Message: "Unmarshalling Data"})
 		return
 	}
-	err1 := walletService.Read(body.Mobile)
+
+	wallet, err1 := walletService.Read(body.Mobile)
 	if err1 != nil {
 		response.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(response).Encode(errors.ServiecError{Message: err1.Error()})
