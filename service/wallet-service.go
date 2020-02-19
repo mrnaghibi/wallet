@@ -5,25 +5,17 @@ import (
 	"github.com/mrnaghibi/wallet/repository"
 )
 
-type WalletService interface {
-	CreateOrUpdate(*entity.Wallet) (*entity.Wallet, error)
-	Read(string) (*entity.Wallet, error)
+type WalletService struct {
+	repo repository.WalletRepository
 }
 
-var (
-	repo repository.Wallet
-)
-
-type service struct{}
-
-func NewWalletService(repository repository.Wallet) WalletService {
-	repo = repository
-	return &service{}
+func WalletServiceProvider(repository repository.WalletRepository) WalletService {
+	return WalletService{repo: repository}
 }
 
-func (*service) CreateOrUpdate(wallet *entity.Wallet) (*entity.Wallet, error) {
-	return repo.InsertOrUpdate(wallet)
+func (s *WalletService) ChargeWallet(mobile string, amount float64) entity.Wallet {
+	return s.repo.ChargeWallet(mobile, amount)
 }
-func (*service) Read(mobileNumber string) (*entity.Wallet, error) {
-	return repo.Read(mobileNumber)
+func (s *WalletService) Read(mobileNumber string) entity.Wallet {
+	return s.repo.Read(mobileNumber)
 }

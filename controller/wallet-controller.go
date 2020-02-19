@@ -1,100 +1,53 @@
 package controller
 
 import (
-	"os"
-	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"log"
 	"net/http"
 
-	"github.com/mrnaghibi/wallet/entity"
 	"github.com/mrnaghibi/wallet/errors"
 	"github.com/mrnaghibi/wallet/service"
 )
 
 const (
-	discountAmount        = 1000000
+	discountAmount float64 = 1000000
 )
 
-type WalletController interface {
-	CreateOrUpdateWallet(response http.ResponseWriter, request *http.Request)
-	ReadWallet(response http.ResponseWriter, request *http.Request)
-}
-type bodyDiscount struct {
-	Mobile   string `json:"mobile"`
-	Discount string `json:"discount"`
-}
-
-type bodyMobile struct {
+type mobileRequestModel struct {
 	Mobile string `json:"mobile"`
 }
 
-var (
-	walletService service.WalletService
-)
-
-type controller struct{}
-
-func NewWalletController(walletSRV service.WalletService) WalletController {
-	walletService = walletSRV
-	return &controller{}
+type WalletController struct {
+	service service.WalletService
 }
 
-func (*controller) CreateOrUpdateWallet(response http.ResponseWriter, request *http.Request) {
+func WalletControllerProvider(walletService service.WalletService) WalletController {
+	return WalletController{service: walletService}
+}
 
+func (c *WalletController) ChargeWallet(response http.ResponseWriter, request *http.Request) {
 	response.Header().Set("Content-Type", "application/json")
-	jsonValue, err := ioutil.ReadAll(request.Body)
+	var requestModel mobileRequestModel
+	err := json.NewDecoder(request.Body).Decode(&requestModel)
 	if err != nil {
+		log.Printf("Wallet %v not charged: %v", requestModel.Mobile, err.Error())
 		response.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(response).Encode(errors.ServiecError{Message: err.Error()})
 		return
 	}
-	res, err3 := http.Post(os.Getenv("BASEURL")+"/api/discounts/consume", "application/json", bytes.NewBuffer(jsonValue))
-	if err3 != nil {
-		http.Error(response, err3.Error(), http.StatusInternalServerError)
-		return
-	}
-	if res.StatusCode == 200 {
-		var body bodyDiscount
-		err1 := json.Unmarshal(jsonValue, &body)
-		if err1 != nil {
-			response.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(response).Encode(errors.ServiecError{Message: err1.Error()})
-			return
-		}
-		wallet := entity.Wallet{
-			Mobile:  body.Mobile,
-			Balance: discountAmount,
-		}
-		result, err2 := walletService.CreateOrUpdate(&wallet)
-		if err2 != nil {
-			response.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(response).Encode(errors.ServiecError{Message: err1.Error()})
-			return
-		}
-		response.WriteHeader(http.StatusOK)
-		json.NewEncoder(response).Encode(result)
-	} else {
-		response.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(response).Encode(errors.ServiecError{Message: "Error"})
-	}
+	_ = c.service.ChargeWallet(requestModel.Mobile, discountAmount)
+	response.WriteHeader(http.StatusNoContent)
 }
-func (*controller) ReadWallet(response http.ResponseWriter, request *http.Request) {
-	response.Header().Set("Content-Type", "application/json")
-	var body bodyMobile
-	err := json.NewDecoder(request.Body).Decode(&body)
-	if err != nil {
-		response.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(response).Encode(errors.ServiecError{Message: "Unmarshalling Data"})
-		return
-	}
 
-	wallet, err1 := walletService.Read(body.Mobile)
-	if err1 != nil {
+func (c *WalletController) ReadWallet(response http.ResponseWriter, request *http.Request) {
+	var requestModel mobileRequestModel
+	err := json.NewDecoder(request.Body).Decode(&requestModel)
+	if err != nil {
 		response.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(response).Encode(errors.ServiecError{Message: err1.Error()})
+		json.NewEncoder(response).Encode(errors.ServiecError{Message: "Bad Request!"})
 		return
 	}
+	wallet := c.service.Read(requestModel.Mobile)
 	response.WriteHeader(http.StatusOK)
-	json.NewEncoder(response).Encode(wallet)
+	json.NewEncoder(response).Encode(wallet.Balance)
 }

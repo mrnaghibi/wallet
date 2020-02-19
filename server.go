@@ -1,24 +1,18 @@
 package main
 
 import (
-	"os"
-	"github.com/mrnaghibi/wallet/controller"
 	router "github.com/mrnaghibi/wallet/http"
-	"github.com/mrnaghibi/wallet/repository"
-	"github.com/mrnaghibi/wallet/service"
 )
 
-var (
-	walletRepository repository.Wallet           = repository.NewSliceRepository()
-	walletService    service.WalletService       = service.NewWalletService(walletRepository)
-	walletController controller.WalletController = controller.NewWalletController(walletService)
-	httpRouter       router.Router               = router.NewMuxRouter()
-)
+var httpRouter = router.NewMuxRouter()
 
 func handleRequest() {
+
+	walletController := initWalletController()
+
 	httpRouter.POST("/api/wallets", walletController.ReadWallet)
-	httpRouter.POST("/api/discounts", walletController.CreateOrUpdateWallet)
-	httpRouter.SERVE(os.Getenv("PORT"))
+	httpRouter.POST("/api/charge", walletController.ChargeWallet)
+	httpRouter.SERVE(":2020")
 }
 
 func main() {
