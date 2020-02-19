@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"github.com/mrnaghibi/wallet/entity"
 	"log"
 	"net/http"
 
@@ -13,9 +14,7 @@ const (
 	discountAmount float64 = 1000000
 )
 
-type mobileRequestModel struct {
-	Mobile string `json:"mobile"`
-}
+
 
 type WalletController struct {
 	service service.WalletService
@@ -27,7 +26,7 @@ func WalletControllerProvider(walletService service.WalletService) WalletControl
 
 func (c *WalletController) ChargeWallet(response http.ResponseWriter, request *http.Request) {
 	response.Header().Set("Content-Type", "application/json")
-	var requestModel mobileRequestModel
+	var requestModel entity.MobileRequestModel
 	err := json.NewDecoder(request.Body).Decode(&requestModel)
 	if err != nil {
 		log.Printf("Wallet %v not charged: %v", requestModel.Mobile, err.Error())
@@ -36,11 +35,11 @@ func (c *WalletController) ChargeWallet(response http.ResponseWriter, request *h
 		return
 	}
 	_ = c.service.ChargeWallet(requestModel.Mobile, discountAmount)
-	response.WriteHeader(http.StatusNoContent)
+	response.WriteHeader(http.StatusOK)
 }
 
 func (c *WalletController) ReadWallet(response http.ResponseWriter, request *http.Request) {
-	var requestModel mobileRequestModel
+	var requestModel entity.MobileRequestModel
 	err := json.NewDecoder(request.Body).Decode(&requestModel)
 	if err != nil {
 		response.WriteHeader(http.StatusBadRequest)
