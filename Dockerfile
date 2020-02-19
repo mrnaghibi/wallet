@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 ENV PORT :8000
-ENV BASEURL http://discount:8000
+
 
 RUN go build -o main .
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	router "github.com/mrnaghibi/wallet/http"
+	"os"
 )
 
 var httpRouter = router.NewMuxRouter()
@@ -12,7 +13,7 @@ func handleRequest() {
 
 	httpRouter.POST("/api/wallets", walletController.ReadWallet)
 	httpRouter.POST("/api/charge", walletController.ChargeWallet)
-	httpRouter.SERVE(":2020")
+	httpRouter.SERVE(os.Getenv("PORT"))
 }
 
 func main() {
